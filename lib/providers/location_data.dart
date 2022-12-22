@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../models/user_location.dart';
 import '../services/file_manager.dart';
 
+// Locatio provider
 class LocationService with ChangeNotifier {
   late Wpt _currentLocation = Wpt();
   late Wpt _previousLocation = Wpt();
