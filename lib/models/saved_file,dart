@@ -1,0 +1,18 @@
+class SavedFile {
+  final String fileName;
+  final String dateTime;
+ 
+
+  SavedFile(this.fileName, this.dateTime);
+
+  SavedFile.fromJson(Map<String, dynamic>? json)
+      : fileName = json!["fileName"],
+        dateTime = json["dateTime"];
+      
+
+  Map<String, dynamic> toJson() => {
+        "fileName": fileName,
+        "dateTime": dateTime,
+        
+      };
+}

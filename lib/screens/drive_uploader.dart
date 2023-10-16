@@ -1,4 +1,5 @@
 import 'package:clmgpx/providers/file_controller.dart';
+import 'package:clmgpx/screens/upload_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,6 +24,12 @@ class _DriveUploaderState extends State<DriveUploader> {
         GestureDetector(
           onTap: () => [
             Navigator.pop(context),
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return const UploadProgress();
+              },
+            ),
             context.read<FileController>().driveFile(),
           ],
           child: SizedBox(

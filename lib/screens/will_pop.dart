@@ -16,7 +16,7 @@ class _WillPopState extends State<WillPop> {
       content: const Padding(
           padding: EdgeInsets.all(8.0),
           child: Text(
-              "If you press Yss the app will stop recording and you might loose progress and if you want to continue CANCEL")),
+              "If you press Yes the app will stop recording and you might loose progress and if you want to continue CANCEL")),
       actions: [
         GestureDetector(
           onTap: () => [Navigator.of(context).pop(true)],

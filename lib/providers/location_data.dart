@@ -1,54 +1,53 @@
 import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/cupertino.dart';
 import 'package:gpx/gpx.dart';
-import 'package:location/location.dart';
 import 'package:flutter/material.dart';
+import 'package:location/location.dart';
 import '../models/user_location.dart';
 import '../services/file_manager.dart';
 
 // Location provider
 class LocationService with ChangeNotifier {
   late Wpt _currentLocation = Wpt();
-  late Wpt _previousLocation = Wpt();
+  Location location = Location();
 
+  late Wpt _lastSaved = Wpt();
   Duration duration = const Duration();
-  final List _distSum = [];
   List<Wpt> _trackpoints = [];
-  Timer? timer;
   Timer? timerr;
   Timer? wtimer;
+  bool _isRecording = false;
+  bool _isConnected = false;
+  // Location location = Location();
+  bool ignoreLastKnownPosition = false;
+  double _distance = 0;
+  List<Wpt> _waypoints = [];
+  int _count = 0;
+  Duration _workingTime = const Duration();
+  DateTime _startTime = DateTime.now();
 
-  double avgSpeed = 0.0;
-  bool isRecording = false;
-  Location location = Location();
-  bool waitForAccurateLocation = true;
-
+//broadcasting location stream
   final StreamController<UserLocation> _locationController =
       StreamController<UserLocation>.broadcast();
 
+// get methods
   Stream<UserLocation> get locationStream => _locationController.stream;
   List<Wpt> get trackpoints => _trackpoints;
-  get timecount => duration;
-  bool get isRecordingg => isRecording;
+  bool get isRecording => _isRecording;
+  bool get isConnected => _isConnected;
   Wpt get currentLocation => _currentLocation;
-  double get distance =>
-      _distSum.fold(0, (previous, current) => previous + current);
+  double get distance => _distance;
+  Duration get workingTime => _workingTime;
+  int get count => _count;
+  List<Wpt> get waypoints => _waypoints;
 
-// Reset all the the track, timers and distance
-  void resetData() {
-    _trackpoints.clear();
-    writeKmlTrack("dname", _trackpoints, "/Session Data/backuptrk.kml");
-    duration = Duration.zero;
-    timer?.cancel();
-    isRecording = false;
-    notifyListeners();
-  }
+//REALTIME LOCATION SERVICE
 
 // Get realtime location
   LocationService() {
-    location.changeSettings(accuracy: LocationAccuracy.high, interval: 2000);
+    location.changeSettings(
+        accuracy: LocationAccuracy.navigation, interval: 4000);
     location.enableBackgroundMode(enable: true);
     location.changeNotificationOptions(
         iconName: "@mipmap/ic_launcher",
@@ -57,7 +56,6 @@ class LocationService with ChangeNotifier {
         description: "arazet is currently running",
         onTapBringToFront: true);
 
-// request permission to use location service
     location.requestPermission().then((granted) => {
           if (granted == granted)
             {
@@ -75,13 +73,13 @@ class LocationService with ChangeNotifier {
                       locationData.accuracy!.toStringAsFixed(1),
                     ),
                   ),
-                  _previousLocation = _currentLocation,
                   _currentLocation = Wpt(
                     lat: locationData.latitude,
                     lon: locationData.longitude,
                     time: DateTime.fromMillisecondsSinceEpoch(
                         locationData.time!.toInt()),
                   ),
+                  debugPrint("Location ${locationData.latitude.toString()}")
                 ],
               )
             }
@@ -89,27 +87,43 @@ class LocationService with ChangeNotifier {
     notifyListeners();
   }
 
-  // Timer
-  void addTime() {
-    const addSeconds = 1;
+////WORKING STATE AND LOGICS
 
-    final seconds = duration.inSeconds + addSeconds;
-
-    duration = Duration(seconds: seconds);
+  // Reset all the the track, timers and distance
+  void resetData() {
+    _waypoints.clear();
+    _count = 0;
+    writeWpts(_waypoints, "/Session Data/backupwpt.gpx");
+    writeCount();
+    readCount();
+    _trackpoints.clear();
+    writeTrack("dname", _trackpoints, "/Session Data/backuptrk.gpx");
+    duration = Duration.zero;
+    _workingTime = Duration.zero;
+    _isRecording = false;
     notifyListeners();
   }
 
-// starting the timer
-  void startTimer({bool resets = true}) {
-    if (resets) {
-      reset();
+  // monitoring wether device have gps connection or not
+  gpsState() async {
+    if (currentLocation.lat.toString() != "0.0" || currentLocation.lat != 0.0) {
+      if (currentLocation.time != null) {
+        final diff = DateTime.now().difference(currentLocation.time!).inSeconds;
+
+        if (diff >= 60) {
+          _isConnected = false;
+        } else {
+          _isConnected = true;
+        }
+      }
+    } else {
+      _isConnected = false;
     }
 
-    timer = Timer.periodic(const Duration(seconds: 1),
-        (_) => [addTime(), avgCal(), addDistance()]);
-    isRecording = true;
     notifyListeners();
   }
+
+//// TRACKLOG DATA RECORDING
 
 // reset timer to zero
   void reset() {
@@ -118,120 +132,228 @@ class LocationService with ChangeNotifier {
     notifyListeners();
   }
 
-// Pause timer
-  void stopTimer({bool resets = true}) {
-    if (resets) {
-      reset();
-    }
-
-    timer!.cancel();
-    isRecording = false;
-    notifyListeners();
-  }
-
   void addPoint() async {
     Wpt point = _currentLocation;
 
-    Wpt point0 = _previousLocation;
+    Wpt point0 = _lastSaved;
 
-    if (point.lat != point0.lat) {
+    if (point.lat != point0.lat && point.lon != point0.lon) {
       _trackpoints.add(point);
+      _isConnected = true;
+      _lastSaved = _currentLocation;
     }
     notifyListeners();
   }
 
-// calculating average speed in km/hr
-  void avgCal() {
-    double time = double.parse(duration.inSeconds.toString());
-    avgSpeed = distance / time * 3600;
-
-    notifyListeners();
-  }
-
-// Check if the distributor's location have changes and if there is Gps network
-  void addDistance() async {
-    Wpt point = _currentLocation;
-    Wpt point0 = _previousLocation;
-
-    if (point.lat != point0.lat && point.lon != point0.lon) {
-      if (point.lat.toString() != "NO GPX FIX") {
-        distanceCal();
-        notifyListeners();
-      }
-    }
-  }
-
-// Calculate distance between two trackpoints
-  void distanceCal() async {
-    Wpt point = _currentLocation;
-    Wpt point0 = _previousLocation;
-
-    if (point.lat != point0.lat && point.lon != point0.lon) {
-      if (point.lat != 0.0) {
-        final dis =
-            Haversine.haversine(point.lat, point.lon, point0.lat, point0.lon);
-        if (dis <= 12) {
-          _distSum.add(dis);
-        }
-      }
-    }
-    notifyListeners();
-  }
-
-//write .gpx tracklog to local files
+  //write .gpx tracklog to local files
   void writeTrack(String dname, List<Wpt> name, file) async {
     await FileManager().writeGpxTrk(dname, name, file);
     notifyListeners();
   }
 
-//write .kml tracklog to local files
+//read gpx track
+  readGpxTrk(file) async {
+    _trackpoints = await FileManager().readGpxTrk(file);
+    notifyListeners();
+  }
+
+  //write .kml tracklog to local files
   void writeKmlTrack(String dname, List<Wpt> name, file) async {
     await FileManager().writeKmlTrk(dname, name, file);
     notifyListeners();
   }
 
+  //write .kml tracklog to local files
+  void writeBackup(String dname, file) {
+    List<Wpt> wpoints = _waypoints;
+    List<Wpt> tpoints = _trackpoints;
+    FileManager().writeGpxBackup(dname, wpoints, tpoints, file);
+    resetData();
+    reset();
+    notifyListeners();
+  }
+
+// start recording track after 5 seconds
   void startRecording({bool resets = true}) {
     if (resets) {
       reset();
     }
-    timerr = Timer.periodic(const Duration(seconds: 8), (_) => addPoint());
+    timerr = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => [
+              addPoint(),
+              gpsState(),
+            ]);
+
+    _isRecording = true;
+    _startTime = DateTime.now();
     notifyListeners();
   }
 
+//Pause track record
   void stopRecording({bool resets = true}) {
     if (resets) {
       reset();
     }
 
     timerr!.cancel();
+    _isRecording = false;
+    // timming(0);
     notifyListeners();
   }
 
-  void startWriteKml({bool resets = true}) {
+// writting tracklog to local backup file
+  void startWriteGpx({bool resets = true}) {
     if (resets) {
       reset();
     }
     wtimer = Timer.periodic(
         const Duration(minutes: 5),
-        (_) => writeKmlTrack(
-            "traclog01", _trackpoints, "/Session Data/backuptrk.kml"));
+        (_) => writeTrack(
+            "traclog01", _trackpoints, "/Session Data/backuptrk.gpx"));
     notifyListeners();
   }
 
+//pause track log recording
   void stopWriteKml({bool resets = true}) {
     if (resets) {
       reset();
     }
-
+    writeTrack("traclog01", _trackpoints, "/Session Data/backuptrk.gpx");
     wtimer!.cancel();
+    notifyListeners();
+  }
+
+  //// WAYPOINTS DATA
+
+  //request Location if current Location == 0.0 or NO Gpx Fix
+
+  void increment(name) async {
+    Wpt waypoint = Wpt(
+        lat: _currentLocation.lat,
+        lon: _currentLocation.lon,
+        ele: _currentLocation.ele,
+        name: "$name",
+        time: _currentLocation.time);
+    _waypoints.add(waypoint);
+    _count++;
+
+    writeWpts(_waypoints, "/Session Data/backupwpt.gpx");
+    writeCount();
+    notifyListeners();
+  }
+
+  void chandIncrement(name, desc) async {
+    Wpt waypoint = Wpt(
+        lat: _currentLocation.lat,
+        lon: _currentLocation.lon,
+        ele: _currentLocation.ele,
+        name: name,
+        time: _currentLocation.time,
+        desc: desc);
+    _waypoints.add(waypoint);
+    _count++;
+
+    writeWpts(_waypoints, "/Session Data/backupwpt.gpx");
+    writeCount();
+    notifyListeners();
+  }
+
+  // add Multiple waypoints if there are many letter boxes
+  void multi(int point) {
+    for (var i = 0; i < point; i++) {
+      Wpt waypoint = Wpt(
+          lat: _currentLocation.lat,
+          lon: _currentLocation.lon,
+          ele: _currentLocation.ele,
+          name: "Letter_box${count + 1}",
+          time: _currentLocation.time);
+
+      _waypoints.add(waypoint);
+      _count++;
+    }
+    writeWpts(_waypoints, "/Session Data/backupwpt.gpx");
+    writeCount();
+
+    notifyListeners();
+
+    debugPrint(_waypoints[1].desc);
+  }
+
+  // read gpx file
+  readGpx(file) async {
+    _waypoints = await FileManager().readGpxFile(file);
+    notifyListeners();
+  }
+
+  // write gpx file
+  void writeWpts(List<Wpt> name, file) async {
+    await FileManager().writeWptFile(name, file);
+
+    notifyListeners();
+  }
+// read number of waypoints from the local txt file
+
+  readCount() async {
+    _count = int.parse(await FileManager().readCount("Count.txt"));
+    notifyListeners();
+  }
+
+  // write number of waypoints to local txt file
+  void writeCount() async {
+    await FileManager().writeCount(_count.toString());
+    notifyListeners();
+  }
+
+  //// CALCULATORS
+
+// calculating working time
+  // void timming(int mode) {
+  //   if (mode == 1) {
+  //     if (_isRecording == true) {
+  //       DateTime stoptime = DateTime.now();
+  //       Duration dif = stoptime.difference(_startTime);
+  //       _workingTime = _workingTime + dif;
+  //       _startTime = DateTime.now();
+  //     }
+  //   }
+
+  //   if (mode == 0) {
+  //     DateTime stoptime = DateTime.now();
+  //     Duration dif = stoptime.difference(_startTime);
+  //     _workingTime = _workingTime + dif;
+  //   }
+
+  //   debugPrint(_workingTime.toString());
+  //   notifyListeners();
+  // }
+
+// calculate distance once when the distributor wants infor
+
+  distanceCal() {
+    _distance = 0;
+    _workingTime = const Duration();
+    for (int i = 0; i < _trackpoints.length - 1; i++) {
+      var start = _trackpoints[i];
+      var end = _trackpoints[i + 1];
+      final dist =
+          Haversine.haversine(start.lat!, start.lon!, end.lat!, end.lon!);
+      Duration dif = end.time!.difference(start.time!);
+      if (dist < 0.1) {
+        _distance += dist;
+        if (dif <= const Duration(minutes: 1)) {
+          _workingTime += dif;
+        }
+      }
+    }
     notifyListeners();
   }
 }
 
+// fomular to calculate between to sets of coordiantes
 class Haversine {
   static const R = 6372.8; // In kilometers
-
-  static double haversine(lat1, lon1, lat2, lon2) {
+  static double haversine(double lat1, double lon1, double lat2, double lon2) {
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
     lat1 = _toRadians(lat1);

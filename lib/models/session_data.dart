@@ -2,20 +2,20 @@ class SessionData {
   String? name;
   String? date;
   String? client;
-  String? area;
+  String? clientmap;
 
-  SessionData(this.name, this.date, this.client, this.area);
+  SessionData(this.name, this.date, this.client, this.clientmap);
 
   SessionData.fromJson(Map<String, dynamic>? json)
       : name = json!["name"],
         date = json["date"],
         client = json["client"],
-        area = json["area"];
+        clientmap = json["clientmap"];
 
   Map<String, dynamic> toJson() => {
         "name": name,
         "date": date,
         "client": client,
-        "area": area,
+        "clientmap": clientmap,
       };
 }

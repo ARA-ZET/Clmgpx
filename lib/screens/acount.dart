@@ -20,8 +20,9 @@ class _LoggedAccountState extends State<LoggedAccount> {
       text: DateFormat('dd MMM yyyy').format(DateTime.now()));
   late final myClient = TextEditingController(
       text: "${context.watch<FileController>().sessionData?.client}");
-  late final myArea = TextEditingController(
-      text: "${context.watch<FileController>().sessionData?.area}");
+  late final myClientmap = TextEditingController(
+      text: "${context.watch<FileController>().sessionData?.clientmap}");
+
   Timer? timer;
 
   @override
@@ -30,7 +31,7 @@ class _LoggedAccountState extends State<LoggedAccount> {
     myName.dispose();
     myDate.dispose();
     myClient.dispose();
-    myArea.dispose();
+    myClientmap.dispose();
     super.dispose();
   }
 
@@ -103,9 +104,9 @@ class _LoggedAccountState extends State<LoggedAccount> {
                   ),
                   width: 130,
                   child: isLogged
-                      ? Row(
+                      ? const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
+                          children: [
                             Icon(Icons.g_translate_rounded),
                             Text(
                               "Sign out",
@@ -113,9 +114,9 @@ class _LoggedAccountState extends State<LoggedAccount> {
                             )
                           ],
                         )
-                      : Row(
+                      : const Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
+                          children: [
                             Icon(Icons.g_translate_rounded),
                             Text(
                               "Sign In",
@@ -158,21 +159,21 @@ class _LoggedAccountState extends State<LoggedAccount> {
                 controller: myClient,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter client name';
+                    return 'Please enter valid clientname';
                   }
                   return null;
                 },
                 decoration: const InputDecoration(
                   labelText: 'Client:',
-                  icon: Icon(Icons.perm_contact_cal_outlined),
+                  icon: Icon(Icons.person_2_outlined),
                 ),
               ),
               TextFormField(
                 style: const TextStyle(fontSize: 14),
-                controller: myArea,
+                controller: myClientmap,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter map id';
+                    return 'Please enter valid map name';
                   }
                   return null;
                 },
@@ -181,14 +182,6 @@ class _LoggedAccountState extends State<LoggedAccount> {
                   icon: Icon(Icons.map_outlined),
                 ),
               ),
-              Container(
-                margin: const EdgeInsets.only(top: 6),
-                alignment: Alignment.topCenter,
-                child: Text(
-                  "Last Saved: ${context.watch<FileController>().lastSavedTrkLocal}",
-                  style: const TextStyle(fontSize: 10),
-                ),
-              )
             ],
           ),
         ),
@@ -205,7 +198,7 @@ class _LoggedAccountState extends State<LoggedAccount> {
                   const SnackBar(content: Text('Distribution Data Updated')),
                 ),
                 context.read<FileController>().writesession(
-                    myName.text, myDate.text, myClient.text, myArea.text),
+                    myName.text, myDate.text, myClient.text, myClientmap.text),
                 Navigator.pop(context),
               ];
             }

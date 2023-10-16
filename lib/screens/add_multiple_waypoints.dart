@@ -1,8 +1,8 @@
-import 'package:clmgpx/models/user_location.dart';
-import 'package:clmgpx/providers/file_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../providers/location_data.dart';
 
 class AddMultipleWaypoints extends StatefulWidget {
   const AddMultipleWaypoints({super.key});
@@ -58,7 +58,7 @@ class MyCustomFormState extends State<MyCustomForm> {
   Widget build(BuildContext context) {
     // Build a Form widget using the _formKey created above.
     double width = MediaQuery.of(context).size.width;
-    UserLocation userLocation = Provider.of<UserLocation>(context);
+
     return Form(
       key: _formKey,
       child: Column(
@@ -71,6 +71,10 @@ class MyCustomFormState extends State<MyCustomForm> {
               if (value == null || value.isEmpty) {
                 return 'Please enter number of boxes';
               }
+              if (int.parse(value) >= 100) {
+                return 'you can not enter more than 100 boxes';
+              }
+
               return null;
             },
 
@@ -98,16 +102,9 @@ class MyCustomFormState extends State<MyCustomForm> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Waypoints added')),
                         ),
-                        context.read<FileController>().multi(
-                            int.parse(myController.text),
-                            UserLocation(
-                              userLocation.latitude,
-                              userLocation.longitude,
-                              userLocation.altitude,
-                              userLocation.speed,
-                              userLocation.time,
-                              userLocation.accuracy,
-                            )),
+                        context.read<LocationService>().multi(
+                              int.parse(myController.text),
+                            ),
                         Navigator.pop(context),
                       ];
                     }

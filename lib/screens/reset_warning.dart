@@ -13,13 +13,15 @@ class DeleteWarning extends StatefulWidget {
 class _DeleteWarningState extends State<DeleteWarning> {
   @override
   Widget build(BuildContext context) {
+    final session = context.watch<FileController>().sessionData;
+    final count = context.watch<LocationService>().count;
     return AlertDialog(
       scrollable: true,
       title: const Text('Warning'),
-      content: Padding(
-          padding: const EdgeInsets.all(2.0),
+      content: const Padding(
+          padding: EdgeInsets.all(2.0),
           child: Column(
-            children: const [
+            children: [
               Text("After reset all of distribution data is lost"),
               Text("-Reset tracklog                        "),
               Text("-Resert timer                            "),
@@ -31,7 +33,8 @@ class _DeleteWarningState extends State<DeleteWarning> {
           onTap: () => [
             Navigator.pop(context),
             context.read<FileController>().deleteData(),
-            context.read<LocationService>().resetData(),
+            context.read<LocationService>().writeBackup("${session?.name}",
+                "/Backup/${session?.date}_${session?.name}_${session?.clientmap}_$count.gpx"),
           ],
           child: SizedBox(
             child: Container(

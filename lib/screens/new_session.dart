@@ -15,13 +15,31 @@ class NewSession extends StatefulWidget {
 
 class _NewSessionState extends State<NewSession> {
   final _formKey = GlobalKey<FormState>();
-  late final myName = TextEditingController(
-      text: "${context.watch<FileController>().sessionData?.name}");
+  late final myName = TextEditingController();
   final myDate = TextEditingController(
       text: DateFormat('dd MMM yyyy').format(DateTime.now()));
-  final myClient = TextEditingController();
-  final myArea = TextEditingController();
+  late final myClient = TextEditingController();
+  late final myClientmap = TextEditingController();
   Timer? timer;
+  static const List<String> _options = [
+    'Francis',
+    'Tanaka',
+    'Petros',
+    'Dickson',
+    'Blessing S',
+    'Blessing K',
+    'Gift',
+    'Gift B',
+    'Sabello',
+    'Samuel',
+    'Talent',
+    'Simba',
+    'Ticha',
+    'Justice',
+    'Benjamin',
+    'Joseph',
+    'Dumisani'
+  ];
 
   @override
   void dispose() {
@@ -29,7 +47,7 @@ class _NewSessionState extends State<NewSession> {
     myName.dispose();
     myDate.dispose();
     myClient.dispose();
-    myArea.dispose();
+    myClientmap.dispose();
     super.dispose();
   }
 
@@ -45,7 +63,72 @@ class _NewSessionState extends State<NewSession> {
           child: RepaintBoundary(
             child: Column(
               children: [
+                // RawAutocomplete<String>(
+                //   optionsBuilder: (TextEditingValue textEditingValue) {
+                //     return _options.where((String option) {
+                //       return option.contains(textEditingValue.text);
+                //     });
+                //   },
+                //   fieldViewBuilder: (
+                //     BuildContext context,
+                //     TextEditingController myName,
+                //     FocusNode focusNode,
+                //     VoidCallback onFieldSubmitted,
+                //   ) {
+                //     return TextFormField(
+                //       controller: myName,
+                //       textCapitalization: TextCapitalization.words,
+                //       focusNode: focusNode,
+                //       onFieldSubmitted: (String value) {
+                //         onFieldSubmitted();
+                //       },
+                //       validator: (value) {
+                //         if (value == null || value.isEmpty) {
+                //           return 'Please enter your name';
+                //         }
+                //         return null;
+                //       },
+                //       decoration: const InputDecoration(
+                //         labelText: 'Name:',
+                //         icon: Icon(Icons.account_box),
+                //       ),
+                //     );
+                //   },
+                //   optionsViewBuilder: (
+                //     BuildContext context,
+                //     AutocompleteOnSelected<String> onSelected,
+                //     Iterable<String> options,
+                //   ) {
+                //     return Align(
+                //       alignment: Alignment.topLeft,
+                //       child: Material(
+                //         elevation: 4.0,
+                //         child: SizedBox(
+                //           height: 200.0,
+                //           width: 250,
+                //           child: ListView.builder(
+                //             padding: const EdgeInsets.all(8.0),
+                //             itemCount: options.length,
+                //             itemBuilder: (BuildContext context, int index) {
+                //               final String option = options.elementAt(index);
+                //               return GestureDetector(
+                //                 onTap: () {
+                //                   onSelected(option);
+                //                   myName.text = option;
+                //                 },
+                //                 child: ListTile(
+                //                   title: Text(option),
+                //                 ),
+                //               );
+                //             },
+                //           ),
+                //         ),
+                //       ),
+                //     );
+                //   },
+                // ),
                 TextFormField(
+                  textCapitalization: TextCapitalization.words,
                   controller: myName,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -54,9 +137,9 @@ class _NewSessionState extends State<NewSession> {
                     return null;
                   },
                   decoration: const InputDecoration(
-                    labelText: 'Name:',
-                    icon: Icon(Icons.account_box),
-                  ),
+                      labelText: 'Name:',
+                      icon: Icon(Icons.account_box),
+                      hintText: "name"),
                 ),
                 TextFormField(
                   controller: myDate,
@@ -72,23 +155,27 @@ class _NewSessionState extends State<NewSession> {
                   ),
                 ),
                 TextFormField(
+                  textCapitalization: TextCapitalization.words,
+                  style: const TextStyle(fontSize: 14),
                   controller: myClient,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter client name';
+                      return 'Please enter valid clientname';
                     }
                     return null;
                   },
                   decoration: const InputDecoration(
                     labelText: 'Client:',
-                    icon: Icon(Icons.perm_contact_cal_outlined),
+                    icon: Icon(Icons.person_4_outlined),
                   ),
                 ),
                 TextFormField(
-                  controller: myArea,
+                  textCapitalization: TextCapitalization.words,
+                  style: const TextStyle(fontSize: 14),
+                  controller: myClientmap,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter map id';
+                      return 'Please enter valid map name';
                     }
                     return null;
                   },
@@ -114,11 +201,10 @@ class _NewSessionState extends State<NewSession> {
                   const SnackBar(content: Text('New Session created')),
                 ),
                 Provider.of<LocationService>(context, listen: false)
-                    .startTimer(resets: true),
-                Provider.of<LocationService>(context, listen: false)
                     .startRecording(resets: false),
-                context.read<FileController>().writesession(
-                    myName.text, myDate.text, myClient.text, myArea.text),
+                Provider.of<FileController>(context, listen: false)
+                    .writesession(myName.text, myDate.text, myClient.text,
+                        myClientmap.text),
                 Navigator.pop(context),
               ];
             }
